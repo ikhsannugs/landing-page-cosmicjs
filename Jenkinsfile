@@ -15,7 +15,8 @@ pipeline {
    stage('Compile') {
       agent {
         docker {
-          image 'node:13.8.0-stretch-slim'  args '-u root'
+          image 'node:13.8.0-stretch-slim'
+          args '-u root'
           reuseNode true
         }
       }

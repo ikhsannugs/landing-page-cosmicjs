@@ -1,20 +1,35 @@
-env.DOCKER_REGISTRY = 'ikhsannugs'
-env.DOCKER_IMAGE_NAME = 'node-cosmicjs'
-node('master') {
-    stage('Git Pull') {
-          checkout scm
-    }
-      stage('Build Docker Image') {
-        sh "docker build -t $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:${BUILD_NUMBER} ."   
-    }
-      stage('Push Docker Image to Dockerhub') {
-          sh "docker push $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:${BUILD_NUMBER}"
-    }
-          stage('Deploy to Server') {
-          sh 'sed -i "s/BUILD_NUMBER/$BUILD_NUMBER/g" cosmic.yaml'    
-          sh "docker container run -d -p 3000:3000 --name nodejs $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:${BUILD_NUMBER}"
-    }
-    
+pipeline {
+ agent any
+
+ environment {
+   GIT_COMMIT_SHORT = sh(returnStdout: true, script: '''echo $GIT_COMMIT | head -c 7''')
+ }
+
+ stages {
+   stage('Prepare .env') {
+     steps {
+       sh 'echo GIT_COMMIT_SHORT=$(echo $GIT_COMMIT_SHORT) > .env'
+     }
+   }
+
+   stage('Compile') {
+      agent {
+        docker {
+          image 'node:13.8.0-stretch-slim'
+          reuseNode true
+        }
+      }
+      steps {
+        sh 'npm install'
+      }
+   }
+
+   stage('Package Docker') {
+     steps {
+         sh 'docker build . -t landpage:$GIT_COMMIT_SHORT'
+         sh 'docker tag landpage:$GIT_COMMIT_SHORT ikhsannugs/landpage:$GIT_COMMIT_SHORT'
+         sh 'docker push ikhsannugs/landpage:$GIT_COMMIT_SHORT'
+       }
+     }
+   }
 }
-
-
